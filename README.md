@@ -169,6 +169,8 @@ node bin/mem.js import legacy.json --scope global
 node --check lib/index.js
 node test/smoke.mjs
 node test/unit.mjs
+node test/stress.mjs     # 边界/注入/并发/损坏数据
+node scripts/make-release.mjs   # 导出发布候选到 D:\dsdata\release\dsh-memory-anchor
 ```
 
 ## 许可

@@ -68,6 +68,7 @@ function parseFlags(args) {
   const rest = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
+    if (a === '--') { rest.push(...args.slice(i + 1)); break; }   // 之后的全部当字面值
     if (a.startsWith('--')) {
       const key = a.slice(2);
       const next = args[i + 1];
@@ -164,8 +165,8 @@ function cmdAdd() {
   }
 
   const scope = payload?.scope || flags.scope || autoScope();
-  const title = payload?.title || flags.title;
-  if (!title) die('缺少 --title');
+  const title = String(payload?.title ?? flags.title ?? '').trim();
+  if (!title) die('缺少 --title（标题不能为空）');
 
   // ---- 摘要分级（2026-10-20 v9）--------------------------------------------
   // 旧逻辑把摘要硬切 500 字且不留痕迹（实测 28 条里 10 条被截，细节直接丢失）。
@@ -1449,7 +1450,15 @@ const CMDS = {
 };
 
 if (CMDS[cmd]) {
-  CMDS[cmd]();
+  try {
+    CMDS[cmd]();
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    if (/not a database|database disk image is malformed|file is encrypted/i.test(msg)) {
+      die(`数据库文件损坏或不是 SQLite（${msg}）；先备份，再用 export 或备份恢复`);
+    }
+    die(msg);
+  }
 } else {
   const help = fs.readFileSync(__filename, 'utf8').split('*/')[0].split('/**')[1];
   console.log(help.replace(/^\s*\*n?/gm, '').replace(/^\s*\* ?/gm, ''));
