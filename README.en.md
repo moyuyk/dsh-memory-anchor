@@ -30,17 +30,46 @@ From the DSH plugin market, or by linking a checkout:
 dsh plugin --profile desktop add link:D:/path/to/dsh-memory-anchor
 ```
 
-Restart DSH. The bundle patch inserts the plugin automatically.
+Then add the package to the profile's bundle list (`~/.dsh/profiles/desktop/package.json`):
+
+```json
+"dsh": {
+  "profile": {
+    "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-memory-anchor"]
+  }
+}
+```
+
+Restart DSH. Loaded as a **bundle**, the switch on the plugin page really
+enables/disables it: off → new sessions have no `memory_add` / `memory_search`
+and no injected memory; on → restored. Toggling requires a restart
+(`requiresRestart: true`).
+
+## Where to look
+
+**Plugins → dsh-memory-anchor → Memory**:
+
+| Where | What |
+| --- | --- |
+| 「导出 ▾」 | summary JSON / memory backup (no logs) / full backup (with session logs) |
+| 「导入」 | pick a JSON array; lenient shapes (`text/tags/pinned`, `title/content`, this package's format) |
+| Stats | per-scope counts, kind breakdown, recent entries; read-only, no search box |
+
+Searching stays in `memory_search` / the CLI, not on the page.
 
 ## Configuration
 
+The default data directory is `<DSH_HOME>/memory`. To change it, override the
+same entry in the patch (the `id` must match the bundle's); do not use `insert`:
+
 ```yaml
-- insert:
-    - id: memory-anchor
-      name: dsh-memory-anchor
-      config:
-        memRoot: ""   # empty = <DSH_HOME>/memory; or set $DSH_MEM_ROOT
+- id: memory-anchor
+  name: dsh-memory-anchor
+  config:
+    memRoot: D:/dsdata/memory
 ```
+
+Or set `$DSH_MEM_ROOT`.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -89,7 +118,7 @@ Import skips dedupe and trusts the input, so do not import the same file twice.
 Upgrading the install directory does not touch `~/.dsh/sessions` or
 `~/.dsh/memory`, but a backup is still recommended.
 
-The sidebar 「记忆库」 → 「导出 ▾」 menu offers three options:
+The **Plugins → dsh-memory-anchor → Memory → 「导出 ▾」** menu offers three options:
 
 | Option | Contents | Use |
 |---|---|---|

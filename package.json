@@ -1,6 +1,6 @@
 {
   "name": "dsh-memory-anchor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DeepSeek Harness 的锚点式本地长期记忆：摘要进 SQLite，原文按锚点回会话日志；不调模型、不联网、零第三方依赖。",
   "type": "module",
   "main": "lib/index.js",

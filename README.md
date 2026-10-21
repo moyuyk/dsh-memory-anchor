@@ -24,17 +24,45 @@ DeepSeek Harness 的「锚点式」本地长期记忆。
 dsh plugin --profile desktop add link:D:/path/to/dsh-memory-anchor
 ```
 
-重启 DSH。bundle patch 会自动插入插件。
+然后把包加进 profile 的 bundle 列表（`~/.dsh/profiles/desktop/package.json`）：
+
+```json
+"dsh": {
+  "profile": {
+    "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-memory-anchor"]
+  }
+}
+```
+
+重启 DSH。作为 **bundle** 加载后，插件页的开关能真正启停它：关掉 → 新会话没有
+`memory_add` / `memory_search`、也没有记忆注入；再打开恢复。切换开关要重启 DSH
+（`requiresRestart: true`）。
+
+## 在哪看和管
+
+**插件 → dsh-memory-anchor → 记忆库**：
+
+| 位置 | 能做什么 |
+| --- | --- |
+| 「导出 ▾」 | 仅结论 JSON / 记忆库备份（不含日志）/ 完整备份（含会话日志） |
+| 「导入」 | 选一个 JSON 数组；宽松格式（`text/tags/pinned`、`title/content`、本包格式） |
+| 统计 | 按 scope 的条数和类型分布、最近条目；是只读的，没有搜索框 |
+
+检索走 `memory_search` 工具或 CLI，不占页面。
 
 ## 配置
 
+默认数据目录是 `<DSH_HOME>/memory`。要改就在 patch 里**覆盖同一条目**（`id` 必须
+和 bundle 里的一致），不要用 `insert`：
+
 ```yaml
-- insert:
-    - id: memory-anchor
-      name: dsh-memory-anchor
-      config:
-        memRoot: ""   # 空 = <DSH_HOME>/memory；也可设 $DSH_MEM_ROOT
+- id: memory-anchor
+  name: dsh-memory-anchor
+  config:
+    memRoot: D:/dsdata/memory
 ```
+
+也可以设环境变量 `$DSH_MEM_ROOT`。
 
 ## 工具
 
@@ -74,7 +102,7 @@ node bin/mem.js import memory.json --scope global
 
 升级安装目录不会动 `~/.dsh/sessions` 和 `~/.dsh/memory`，但仍建议先备份。
 
-GUI 侧栏「记忆库」→「导出 ▾」有三种：
+GUI：**插件 → dsh-memory-anchor → 记忆库 →「导出 ▾」**，三种：
 
 | 选项 | 内容 | 用途 |
 |---|---|---|
