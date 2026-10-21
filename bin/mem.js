@@ -30,7 +30,7 @@
  *   node mem.js raw <scope>#<id>               调取原文（优先库内，回退会话日志）
  *   node mem.js raw-fetch <scope>#<id>         按 raw_ref 从日志提取原文并入库
  *   node mem.js backfill [--scope x] [--apply] [--min-score 0.35]   批量回填原文
- *   node mem.js doctor [--scope x]             全库体检（缺原文/原文可疑）+ 重建文本库
+ *   node mem.js doctor [--scope x]             全库体检（缺原文/原文可疑/锚点失效）
  *   node mem.js scopes                         列出所有记忆库
  *   node mem.js stats                          统计
  *   node mem.js update <scope>#<id> [--summary "..."] [--weight 5] [--status done]
@@ -48,33 +48,15 @@
 const path = require('path');
 const fs = require('fs');
 const store = require('./lib/store');
-const library = require('./lib/library');
 
 // 启动时确保所有库都有最新表结构（老库补建 node_raw 原文表；失败就跳过）
 try { for (const s of store.listScopes()) store.ensureScope(s); } catch { /* 并发锁等情况忽略 */ }
 
 /**
- * txt 文本库（「dsh聊天记录」）自动更新 —— 2026-10-20 起默认关闭。
- *
- * 为什么关：它的内容完全来自 node_raw.text，而原文副本已瘦身
- * （原文真源改为 DSH 会话日志）。人读出口改由 `mem.js raw` 按需取，
- * 不再维护一份会过期的派生快照。
- *
- * 需要时仍可手动导出：node bin/build-library.js
- * 或 `mem.js doctor` 结尾会自动重建一次。
- * 想恢复自动更新：设环境变量 DSH_TXT_AUTOBUILD=1。
+ * 说明：曾经在这里维护一份「dsh聊天记录」txt 分卷快照（DSH_TXT_AUTOBUILD）。
+ * 2026-10-21 整条删除——它的内容全部派生自记忆库，原文真源是 DSH 会话日志，
+ * 人读/备份交给 `mem.js raw` 和插件页导出，不再维护第二份会过期的副本。
  */
-const TXT_AUTOBUILD = process.env.DSH_TXT_AUTOBUILD === '1';
-process.on('exit', () => {
-  if (!TXT_AUTOBUILD) return;
-  if (!store.isDirty()) return;
-  try {
-    const r = library.build();
-    console.log(`[文本库] 已更新「${r.baseName}」：${r.entries} 条 / 原文 ${r.chars} 字 / ${r.volumes.length - 1} 卷 + 总目录 -> ${r.dir}`);
-  } catch (e) {
-    console.error(`[文本库] 更新失败（不影响本次记忆写入）: ${e.message}`);
-  }
-});
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -267,7 +249,7 @@ function cmdAdd() {
 
   // ---- 自动补原文（2026-10-16 起）------------------------------------------
   // 背景：此前 add 只写摘要，原文靠事后 backfill「猜」，猜错不报错、漏跑就没原文，
-  // 导致「dsh聊天记录」文本库长时间不增长（用户实测发现）。现在默认自动抓。
+  // 导致记忆条目长期没有原文可回源（用户实测发现）。现在默认自动抓。
   //
   // 策略：没显式给原文时，若在 DSH 会话内（有 DSH_SESSION_ID），
   // 自动取「当前会话最后 N 条对话事件」作为原文——记忆总是写在会话进行中，
@@ -356,7 +338,7 @@ function cmdAdd() {
       }
     } catch { /* 校验失败不影响写入 */ }
   } else if (!raw && !rawRef) {
-    console.log(`[⚠️ 无原文] 这条只有摘要，文本库不会增长。补法：mem.js backfill --scope ${scope} --apply`);
+    console.log(`[⚠️ 无原文] 这条只有摘要，raw 取不到原文。补法：mem.js backfill --scope ${scope} --apply`);
   }
 }
 
@@ -847,14 +829,13 @@ function cmdBackfill() {
 /**
  * 一条命令做完全库体检（2026-10-16 新增）。
  *
- * 起因：用户发现「dsh聊天记录」文本库一整天没长——根因是 add 漏跑 backfill，
+ * 起因：用户发现记忆条目一整天没有原文可回源——根因是 add 漏跑 backfill，
  * 以及 backfill 会「配错原文但打 ✓」。所以把检查固化成命令，不靠人记得。
  *
  * 检查项：
- *   ① 缺原文的条目（文本库不会增长的原因）
+ *   ① 缺原文的条目（raw 取不到原文的原因）
  *   ② 原文与摘要相关度可疑的条目（配错的）
  *   ③ 各库原文覆盖与总字数
- * 结尾自动重建「dsh聊天记录」文本库。
  */
 function cmdDoctor() {
   const { flags } = parseFlags(argv.slice(1));
@@ -897,7 +878,7 @@ function cmdDoctor() {
   console.log(`合计 ${totalNodes} 条记忆，其中 ${totalRaw} 条有锚点（原文在会话日志，不存副本）`);
 
   if (missingAll.length) {
-    console.log(`\n【缺原文】${missingAll.length} 条（这些不会进文本库正文）：`);
+    console.log(`\n【缺原文】${missingAll.length} 条（这些 raw 取不到原文）：`);
     for (const m of missingAll.slice(0, 30)) console.log(`  - ${m.scope}#${m.id}  「${clip(m.title, 46)}」  ${m.created || ''}`);
     if (missingAll.length > 30) console.log(`  …另有 ${missingAll.length - 30} 条`);
     console.log(`  补法：mem.js backfill --scope <库> --apply   （补完务必用 raw 抽查）`);
@@ -926,19 +907,6 @@ function cmdDoctor() {
     console.log('  修法：确认会话是否被清理；必要时 backfill 重新定位，或 --raw-text 手工补');
   } else {
     console.log('\n【锚点失效】无 ✓');
-  }
-
-  // 重建文本库（doctor 总是顺手同步一次，避免「库更新了但 txt 没更新」）
-  console.log('\n' + '-'.repeat(70));
-  try {
-    const r = library.build({});
-    if (r && r.files) {
-      console.log(`[文本库] 已重建：${r.total || '?'} 条 / 原文 ${r.chars || '?'} 字 -> ${(r.files || []).length} 个文件`);
-    } else {
-      console.log('[文本库] 已重建');
-    }
-  } catch (e) {
-    console.log(`[文本库] 重建失败：${e.message}（可手动 node bin/build-library.js）`);
   }
 }
 
@@ -1248,7 +1216,6 @@ function cmdNewProject() {
   } finally {
     db.close();
   }
-  store.markDirty();   // 让「dsh聊天记录」文本库跟着更新
   console.log(`[已创建] 项目「${name}」 -> ${f}`);
 }
 

@@ -572,15 +572,6 @@ function rawSnippet(text, tokens, radius = 120) {
   return (start > 0 ? '…' : '') + s.slice(start, end) + (end < s.length ? '…' : '');
 }
 
-/**
- * 写操作标记：外层（mem.js）在进程退出时据此重建「dsh聊天记录」文本库。
- * 只在**真正的数据变更**时标记；ensureScope 的建表探测不算，
- * 否则每条只读命令都会白白触发一次重建。
- */
-let __dirty = false;
-function markDirty() { __dirty = true; }
-function isDirty() { return __dirty; }
-
 /** 写入一个记忆节点 */
 function addNode(scope, node) {
   const { db, file } = openScope(scope);
@@ -618,7 +609,6 @@ function addNode(scope, node) {
     if (node.raw && String(node.raw.text || '').trim()) {
       writeRaw(db, id, node.raw, ts);
     }
-    markDirty();
     return { id, file };
   } finally {
     db.close();
@@ -667,7 +657,6 @@ function setNodeRaw(scope, id, raw) {
   const { db } = openScope(scope);
   try {
     const ok = writeRaw(db, id, raw);
-    if (ok) markDirty();
     return ok;
   } finally {
     db.close();
@@ -963,12 +952,10 @@ function deleteNode(scope, id, { hard = false } = {}) {
       try { db.prepare('DELETE FROM node_raw WHERE node_id = ?').run(id); } catch { /* 老库无表 */ }
       try { removeTokens(db, id); } catch { /* CJK 索引层不存在 */ }
       const changed = db.prepare('DELETE FROM nodes WHERE id = ?').run(id).changes > 0;
-      if (changed) markDirty();
       return changed;
     }
     const r = db.prepare("UPDATE nodes SET status = 'deleted', updated_at = ? WHERE id = ? AND (status IS NULL OR status <> 'deleted')")
       .run(nowIso(), id);
-    if (r.changes > 0) markDirty();
     return r.changes > 0;
   } finally {
     db.close();
@@ -981,7 +968,6 @@ function restoreNode(scope, id) {
   try {
     const r = db.prepare("UPDATE nodes SET status = 'open', updated_at = ? WHERE id = ? AND status = 'deleted'")
       .run(nowIso(), id);
-    if (r.changes > 0) markDirty();
     return r.changes > 0;
   } finally {
     db.close();
@@ -1011,7 +997,6 @@ function updateNode(scope, id, fields) {
         const row = db.prepare('SELECT id, title, summary, tags, body FROM nodes WHERE id = ?').get(id);
         if (row) syncTokens(db, id, row);
       } catch { /* 索引失败不影响主数据 */ }
-      markDirty();
     }
     return changed;
   } finally {
@@ -1102,7 +1087,7 @@ function stats() {
 /** 删除整个 scope（项目库） */
 function dropScope(scope) {
   const file = scopeFile(scope);
-  if (fs.existsSync(file)) { fs.unlinkSync(file); markDirty(); return true; }
+  if (fs.existsSync(file)) { fs.unlinkSync(file); return true; }
   return false;
 }
 
@@ -1119,6 +1104,5 @@ module.exports = {
   findSimilar, isMetaNode,
   // 原文片段截取（纯文本处理，不依赖索引）
   rawSnippet,
-  markDirty, isDirty,
   nowIso,
 };

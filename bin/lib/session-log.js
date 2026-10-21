@@ -194,7 +194,22 @@ function extractCompactions(events) {
  *
  * 索引放 <MEM_ROOT>/sessions-index/（D 盘），不放 ~/.dsh，避免 DSH 重装带走。
  */
-const INDEX_DIR = path.resolve(__dirname, '..', '..', 'sessions-index');
+/**
+ * 索引目录：跟记忆库同一个根（`<MEM_ROOT>/sessions-index/`），不放进包目录。
+ * 插件装进 node_modules 后包目录是只读的、升级还会整个重建，索引放那里会丢，
+ * 每次 raw 都要全量重建帧索引。
+ *
+ * 解析顺序与 store.js 的 defaultMemRoot 保持一致：
+ *   $DSH_MEM_ROOT > 老布局（包根下有 db/）> <DSH_HOME>/memory
+ */
+function resolveIndexDir() {
+  const fromEnv = process.env.DSH_MEM_ROOT;
+  if (fromEnv) return path.join(path.resolve(fromEnv), 'sessions-index');
+  const pkgRoot = path.resolve(__dirname, '..', '..');
+  try { if (fs.existsSync(path.join(pkgRoot, 'db'))) return path.join(pkgRoot, 'sessions-index'); } catch { /* ignore */ }
+  const home = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
+  return path.join(home, 'memory', 'sessions-index');
+}
 
 /** 会话 id 用作文件名时做安全化处理 */
 function safeId(s) {
@@ -203,7 +218,7 @@ function safeId(s) {
 
 function indexPathFor(filePath, sessionId) {
   // 用 .json.gz：2.47MB 会话的索引是 129KB 明文，gzip 后约 10-20KB
-  return path.join(INDEX_DIR, `${safeId(sessionId)}.json.gz`);
+  return path.join(resolveIndexDir(), `${safeId(sessionId)}.json.gz`);
 }
 
 /**
@@ -277,7 +292,7 @@ function getFrameIndex(filePath, sessionId) {
   const buildMs = Date.now() - t0;
 
   try {
-    fs.mkdirSync(INDEX_DIR, { recursive: true });
+    fs.mkdirSync(resolveIndexDir(), { recursive: true });
     const payload = JSON.stringify({
       sessionId, size: st.size, mtimeMs: st.mtimeMs,
       count: frames.length, builtAt: nowStamp(), frames,
@@ -372,7 +387,7 @@ module.exports = {
   buildSurface,
   extractCompactions,
   // 帧级索引（2026-10-20 加）
-  INDEX_DIR,
+  get INDEX_DIR() { return resolveIndexDir() },
   buildFrameIndex,
   getFrameIndex,
   readSessionRange,
