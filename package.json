@@ -68,5 +68,13 @@
     "@deepseek-ai/dsh-system-prompt": ">=0.2.1-rc.2 <0.3.0",
     "@deepseek-ai/dsh-tools": ">=0.2.1-rc.2 <0.3.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moyuyk/dsh-memory-anchor.git"
+  },
+  "homepage": "https://github.com/moyuyk/dsh-memory-anchor#readme",
+  "bugs": {
+    "url": "https://github.com/moyuyk/dsh-memory-anchor/issues"
+  },
   "author": "dsh-memory-anchor contributors"
 }
