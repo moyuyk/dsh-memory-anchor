@@ -1,7 +1,7 @@
 {
   "name": "dsh-memory-anchor",
   "version": "0.1.0",
-  "description": "跨会话长期记忆：摘要进 SQLite，原文只存锚点、按需回源会话日志；不调模型、不联网、零运行时依赖。",
+  "description": "DeepSeek Harness（DSH）跨会话长期记忆插件：摘要进 SQLite，原文只存锚点、按需回源会话日志；不调模型、不联网、零运行时依赖。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

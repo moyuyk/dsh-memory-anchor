@@ -5,8 +5,8 @@
     "zh": "锚忆"
   },
   "description": {
-    "en": "Anchored long-term memory: summaries in SQLite, original text restored from the session log on demand.",
-    "zh": "摘要进库，原文回源：跨会话长期记忆，零模型调用、零网络、零运行时依赖。"
+    "en": "A DeepSeek Harness (DSH) plugin: summaries in the database, original text restored on demand; no model calls, no network, zero runtime dependencies.",
+    "zh": "DeepSeek Harness（DSH）插件：摘要进库，原文回源；跨会话长期记忆，零模型调用、零网络、零运行时依赖。"
   },
   "metadata": {
     "categories": {
@@ -24,12 +24,12 @@
     {
       "name": "dsh-memory-anchor",
       "title": {
-        "en": "dsh-memory-anchor (锚忆)",
-        "zh": "锚忆（dsh-memory-anchor）"
+        "en": "dsh-memory-anchor (DSH memory plugin)",
+        "zh": "锚忆（DSH 记忆插件）"
       },
       "description": {
-        "en": "Cross-session memory that keeps summaries plus one anchor per memory; `raw` goes back to the DSH session log. No model calls, no network, zero runtime dependencies.",
-        "zh": "跨会话记忆：只存摘要和一行锚点，需要原话时回会话日志取；不调模型、不联网、零运行时依赖。"
+        "en": "DeepSeek Harness (DSH) cross-session memory: summaries plus one anchor per memory; `raw` goes back to the DSH session log. No model calls, no network, zero runtime dependencies.",
+        "zh": "DSH 跨会话记忆：只存摘要和一行锚点，需要原话时回会话日志取；不调模型、不联网、零运行时依赖。"
       },
       "author": "moyuyk",
       "homepage": "https://github.com/moyuyk/dsh-memory-anchor#readme",
@@ -38,7 +38,13 @@
       },
       "metadata": {
         "category": "memory",
-        "keywords": ["memory", "sqlite", "anchor", "local-first", "cross-session"],
+        "keywords": [
+          "memory",
+          "sqlite",
+          "anchor",
+          "local-first",
+          "cross-session"
+        ],
         "labels": [],
         "sortKeys": {}
       },
@@ -49,7 +55,7 @@
           "source": {
             "type": "git",
             "url": "https://github.com/moyuyk/dsh-memory-anchor",
-            "commit": "859317991635631c09253dee21825adcaab9e060"
+            "commit": "-"
           },
           "engines": {
             "dsh": ">=0.2.1-rc.2 <0.3.0"
