@@ -168,6 +168,36 @@ check('import 非数组 / 坏 JSON 被拒', () => {
   assert.equal(tryRun(['import', f, '--scope', 'global']).ok, false, '坏 JSON 应该被拒')
 })
 
+// ── 5b. 并发更新 / 删除 ────────────────────────────────────────────────
+const spawnOne = (args) => new Promise((resolve) => {
+  const { spawn } = require('node:child_process')
+  const p = spawn(process.execPath, [memJs, ...args], { env })
+  let out = ''
+  let err = ''
+  p.stdout.on('data', (d) => { out += d })
+  p.stderr.on('data', (d) => { err += d })
+  p.stdin.end()
+  p.on('exit', (code) => resolve({ code, out: out + err }))
+})
+
+const targetAdd = tryRun(['add', '--json-stdin'], { title: '并发更新目标', scope: 'global', noAutoRaw: true })
+const targetRef = (/(global#\d+)/.exec(targetAdd.out) || [])[1] || 'global#1'
+
+const upd = await Promise.all(Array.from({ length: 8 }, () => spawnOne(['update', targetRef, '--rev', '1', '--weight', '4'])))
+check('8 个进程并发 update 同一条：只有一个拿到 revision 1', () => {
+  const okCount = upd.filter((r) => r.code === 0).length
+  const failed = upd.filter((r) => r.code !== 0).length
+  assert.equal(okCount, 1, '应只有一个成功，实际 ' + okCount)
+  assert.equal(failed, 7, '其余 7 个应该失败（版本冲突或锁等待失败），实际 ' + failed)
+})
+
+const rms = await Promise.all(Array.from({ length: 8 }, () => spawnOne(['rm', targetRef])))
+check('8 个进程并发 rm 同一条：不崩、最终从 list 消失', () => {
+  assert.ok(rms.every((r) => r.code === 0 || r.code === 1), '退出码异常: ' + rms.map((r) => r.code).join(','))
+  const listOut = run(['list', '--scope', 'global'])
+  assert.ok(!listOut.includes('并发更新目标'), '删除后不应出现在 list')
+})
+
 // ── 6. 规模 ────────────────────────────────────────────────────────────
 check('500 条批量写入 + 检索在 5 秒内', () => {
   const bulk = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-mem-bulk-'))

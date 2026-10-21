@@ -35,5 +35,7 @@ jobs:
         run: node test/web.mjs
       - name: First-turn hook test
         run: node test/hook.mjs
+      - name: Client panel test
+        run: node test/client.mjs
       - name: Stress test
         run: node test/stress.mjs

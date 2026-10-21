@@ -74,7 +74,7 @@ dsh plugin --profile desktop add link:D:/path/to/dsh-memory-anchor
 
 | 位置 | 能做什么 |
 | --- | --- |
-| 「导出 ▾」 | 仅结论 JSON / 记忆库备份（不含日志）/ 完整备份（含会话日志） |
+| 「导出 ▾」 | 仅结论 JSON / Markdown 摘要 / 记忆库备份（不含日志）/ 完整备份（含会话日志） |
 | 「导入」 | 选一个 JSON 数组；宽松格式（`text/tags/pinned`、`title/content`、本包格式） |
 | 统计 | 按 scope 的条数和类型分布、最近条目；只读，没有搜索框 |
 
@@ -174,6 +174,7 @@ node bin/mem.js import legacy.json --scope global
 node --check lib/index.js
 node test/smoke.mjs
 node test/unit.mjs
+node test/client.mjs    # 面板渲染（最小 React stub，无额外依赖）
 node test/stress.mjs     # 边界/注入/并发/损坏数据
 node scripts/make-release.mjs   # 导出发布候选到 D:\dsdata\release\dsh-memory-anchor
 ```

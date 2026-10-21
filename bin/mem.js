@@ -1092,15 +1092,23 @@ function cmdUpdate() {
   }
   if (flags.corrected !== undefined) fields.corrected = Number(flags.corrected) ? 1 : 0;
   // 版本保护：--rev 必须与当前 revision 一致，防并发覆盖（2026-10-21 加）
+  // 注意：预检只是给个早错误；真正的防覆盖靠 updateNode 的 CAS（WHERE revision = ?）。
+  let expectRev;
   if (flags.rev !== undefined) {
     const cur = store.getNode(scope, id);
     if (!cur) die(`找不到 ${scope}#${id}`);
     if (Number(flags.rev) !== Number(cur.revision)) {
       die(`版本冲突：当前 revision=${cur.revision}，你给的是 ${flags.rev}；先 show 再改`);
     }
+    expectRev = Number(flags.rev);
   }
   if (!Object.keys(fields).length) die('没有指定要改的字段');
-  const ok = store.updateNode(scope, id, fields);
+  let ok;
+  try {
+    ok = store.updateNode(scope, id, fields, expectRev === undefined ? {} : { expectRev });
+  } catch (e) {
+    die(String((e && e.message) || e));
+  }
   console.log(ok ? `[已更新] ${scope}#${id} -> ${Object.keys(fields).join(', ')}` : `[错误] 找不到 ${scope}#${id}`);
   if (!ok) return;
 

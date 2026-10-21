@@ -14,15 +14,19 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const pkgRoot = path.resolve(here, '..')
 const pkg = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8'))
-const target = path.resolve(process.argv[2] || 'D:/dsdata/release/dsh-memory-anchor')
+const args = process.argv.slice(2)
+const dirArg = args.find((a) => !a.startsWith('-'))
+const target = path.resolve(dirArg || 'D:/dsdata/release/dsh-memory-anchor')
+const wantTgz = args.includes('--tgz')
 
-if (path.resolve(target) === pkgRoot) {
-  console.error('目标目录不能是源码目录本身')
+if (path.resolve(target) === pkgRoot || target.startsWith(pkgRoot + path.sep)) {
+  console.error('目标目录不能是源码目录本身或它的子目录')
   process.exit(1)
 }
 
@@ -60,3 +64,9 @@ const bytes = files.reduce((n, f) => n + fs.statSync(path.join(target, f)).size,
 console.log(`[release] ${pkg.name}@${pkg.version} -> ${target}`)
 console.log(`[release] ${files.length} 个文件，${(bytes / 1024).toFixed(1)} KB`)
 for (const f of files.sort()) console.log('  ' + f.replace(/\\/g, '/'))
+
+if (process.argv.includes('--tgz')) {
+  const tgz = path.join(path.dirname(target), `${pkg.name}-${pkg.version}.tgz`)
+  execFileSync('tar', ['-czf', tgz, '-C', path.dirname(target), path.basename(target)], { stdio: 'inherit' })
+  console.log(`[release] tarball ${tgz}`)
+}

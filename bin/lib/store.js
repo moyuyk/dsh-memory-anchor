@@ -150,13 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_kind   ON nodes(kind);
 CREATE INDEX IF NOT EXISTS idx_nodes_status ON nodes(status);
 CREATE INDEX IF NOT EXISTS idx_nodes_ts     ON nodes(created_at);
 
-CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
-  title, summary, body, tags,
-  content='nodes', content_rowid='id',
-  tokenize='trigram'
-);
-
--- CJK 检索层（2026-10-20 加）
+-- CJK 检索层（2026-10-20 加；2026-10-21 删掉旧的 trigram 索引）
 -- ========================
 -- 为什么需要第二套索引：
 --   trigram 要求查询串 >= 3 字符，2 字中文词（「记忆」「插件」）被静默丢弃；
@@ -168,7 +162,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
 -- 做法：
 --   入库时把 title/summary/tags 预分词成空格分隔的 token 串，存进 nodes_tok；
 --   FTS 表用 content=''（外部内容模式，不存副本，只存索引）。
---   旧 nodes_fts 保留不动，出问题可一行切回。
 -- body_tok（2026-10-20 v9 加）：摘要被 500 字截断时，完整文本写进 body。
 -- 不把 body 一起索引的话，被截掉的那半段只能靠 LIKE 兜底命中，bm25 排不上。
 CREATE TABLE IF NOT EXISTS nodes_tok (
@@ -198,22 +191,6 @@ CREATE TRIGGER IF NOT EXISTS nodes_tok_au AFTER UPDATE ON nodes_tok BEGIN
   VALUES ('delete', old.node_id, old.title_tok, old.summary_tok, old.tags_tok, old.body_tok);
   INSERT INTO nodes_tok_fts(rowid, title_tok, summary_tok, tags_tok, body_tok)
   VALUES (new.node_id, new.title_tok, new.summary_tok, new.tags_tok, new.body_tok);
-END;
-
--- 保持 FTS 与主表同步
-CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
-  INSERT INTO nodes_fts(rowid, title, summary, body, tags)
-  VALUES (new.id, new.title, new.summary, new.body, new.tags);
-END;
-CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, rowid, title, summary, body, tags)
-  VALUES ('delete', old.id, old.title, old.summary, old.body, old.tags);
-END;
-CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, rowid, title, summary, body, tags)
-  VALUES ('delete', old.id, old.title, old.summary, old.body, old.tags);
-  INSERT INTO nodes_fts(rowid, title, summary, body, tags)
-  VALUES (new.id, new.title, new.summary, new.body, new.tags);
 END;
 
 -- 原文层：只保留「定位锚点」，不再存原文副本（2026-10-20 瘦身）
@@ -313,6 +290,18 @@ function migrateTokenSchema(db) {
   } catch { /* 升级失败不影响主数据；检索走 LIKE 兜底 */ }
 }
 
+/** 老库的 trigram 索引（nodes_fts）已废弃：删表删触发器，回收空间。删不掉也无妨，不再读写。 */
+function dropLegacyTrigram(db) {
+  try {
+    const row = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'nodes_fts'").get();
+    if (!row) return;
+    db.exec('DROP TRIGGER IF EXISTS nodes_ai');
+    db.exec('DROP TRIGGER IF EXISTS nodes_ad');
+    db.exec('DROP TRIGGER IF EXISTS nodes_au');
+    db.exec('DROP TABLE IF EXISTS nodes_fts');
+  } catch { /* 删不掉就留着，反正不再读写 */ }
+}
+
 /** 撞锁时等待的毫秒数（2026-10-20 加） */
 const BUSY_TIMEOUT_MS = 5000;
 /** WAL 切换失败只提示一次，避免每条写命令都刷屏 */
@@ -341,6 +330,7 @@ function openScope(scope, { readOnly = false } = {}) {
     db.exec(SCHEMA);
     migrateSchema(db);
     migrateTokenSchema(db);
+    dropLegacyTrigram(db);
     // CJK 索引层回填（2026-10-20 加）：老库第一次打开时把存量条目补上。
     // 只处理「nodes_tok 里还没有行」或「body_tok 还是空但 body 有内容」的条目，
     // 已回填的库这次查询是空集，开销可忽略。
@@ -813,23 +803,7 @@ function searchInScope(scope, query, { limit = 10, kinds = null, status = null, 
         }
       }
       if (!rows || !rows.length) {
-        // 兜底 1：旧 trigram（老库还没回填 tokens 时仍能工作）
-        if (v.length >= 3) {
-          try {
-            rows = db.prepare(`
-              SELECT n.*, bm25(nodes_fts) AS score, (r.node_id IS NOT NULL) AS has_raw
-              FROM nodes_fts f JOIN nodes n ON n.id = f.rowid
-              LEFT JOIN node_raw r ON r.node_id = n.id
-              WHERE nodes_fts MATCH ?${filterSql}
-              ORDER BY score LIMIT ?
-            `).all(v, ...params, limit);
-          } catch {
-            rows = null;
-          }
-        }
-      }
-      if (!rows || !rows.length) {
-        // 兜底 2：LIKE（单字、符号、FTS 语法错误等）
+        // 兜底：LIKE（单字、符号、FTS 语法错误等）
         // 必须转义 % 和 _，否则查询里的通配符会变成「匹配一切」
         const esc = v.replace(/[\\%_]/g, (c) => '\\' + c);
         const like = `%${esc}%`;
@@ -974,7 +948,7 @@ function restoreNode(scope, id) {
   }
 }
 
-function updateNode(scope, id, fields) {
+function updateNode(scope, id, fields, { expectRev } = {}) {
   const { db } = openScope(scope);
   try {
     const allowed = ['title', 'summary', 'body', 'tags', 'kind', 'weight', 'pinned', 'status', 'raw_ref',
@@ -990,7 +964,12 @@ function updateNode(scope, id, fields) {
     sets.push('revision = revision + 1');
     sets.push('updated_at = ?');
     params.push(nowIso(), id);
-    const changed = db.prepare(`UPDATE nodes SET ${sets.join(', ')} WHERE id = ?`).run(...params).changes > 0;
+    // CAS：版本检查放进 WHERE，和写入同一条语句，避免「读到旧 revision 再写」的竞态
+    const hasRev = expectRev !== undefined && expectRev !== null;
+    const where = hasRev ? 'WHERE id = ? AND revision = ?' : 'WHERE id = ?';
+    if (hasRev) params.push(Number(expectRev));
+    const changed = db.prepare(`UPDATE nodes SET ${sets.join(', ')} ${where}`).run(...params).changes > 0;
+    if (!changed && hasRev) throw new Error('版本冲突：revision 已变，请先 show 再改');
     if (changed) {
       // CJK 索引层跟着主表更新（2026-10-20 加）
       try {

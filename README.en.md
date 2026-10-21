@@ -82,7 +82,7 @@ Or set `$DSH_MEM_ROOT`.
 
 | Where | What |
 | --- | --- |
-| 「导出 ▾」 | summary JSON / memory backup (no logs) / full backup (with session logs) |
+| 「导出 ▾」 | summary JSON / Markdown digest / memory backup (no logs) / full backup (with session logs) |
 | 「导入」 | pick a JSON array; lenient shapes (`text/tags/pinned`, `title/content`, this format) |
 | Stats | per-scope counts, kind breakdown, recent entries; read-only, no search box |
 
@@ -186,6 +186,7 @@ you no longer need the data.
 node --check lib/index.js
 node test/smoke.mjs
 node test/unit.mjs
+node test/client.mjs    # panel rendering (minimal React stub, no extra deps)
 node test/stress.mjs     # boundaries, injection, concurrency, corrupted data
 node scripts/make-release.mjs   # export a release candidate to D:\dsdata\release\dsh-memory-anchor
 ```
