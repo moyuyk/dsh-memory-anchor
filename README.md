@@ -70,6 +70,33 @@ node bin/mem.js import memory.json --scope global
 
 导出包含摘要和元数据；原文仍在会话日志里。导入不查重，同一个文件不要导两次。
 
+## 从其他记忆插件迁移
+
+先禁用旧插件再导入——两套注入会重复、工具会重名。
+
+| 旧插件 | 导出 | 本包映射 |
+|---|---|---|
+| `dsh-memory` / `dsh-ltm` | `SELECT text, tags, pinned FROM memories` → JSON 数组 | `text` → 摘要，`pinned` → weight 5 |
+| `meow-memory` | 七层表导出 `title/content/level/importance` | `lesson`→坑、`project`→决策、`user`→画像、`rules`→偏好 |
+| Markdown 类 | 每条 `{title, content}` | `content` → 摘要 |
+
+```powershell
+node bin/mem.js import legacy.json --scope global
+```
+
+导入的条目不携带会话锚点，`raw` 无法回源；全文会进 `body`，检索和 `show` 仍可看。
+导入不查重，同一个文件不要导两次。
+
+## 让模型帮你整理一次（可选）
+
+本包不会在后台调模型做总结。如果你有一批旧记忆要整理，把 [PROMPTS.md](./PROMPTS.md) 里的提示词复制给 DeepSeek Harness 跑一次即可，之后不需要再跑。
+
+最常用的一段：
+
+> 你是记忆库整理员。先运行 `mem.js list --scope global` 看现状，找出重复、过时、一条多结论、标题太泛的条目；重复的保留最全、其余软删；一条多结论的拆成多条；不要新增没有依据的条；结束后报告整理前/合并/拆分/删除的数量。
+
+更多提示词见 [PROMPTS.md](./PROMPTS.md)。
+
 ## 数据位置
 
 ```

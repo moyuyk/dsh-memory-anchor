@@ -68,5 +68,14 @@ run(['import', path.join(root, 'export.json'), '--scope', 'chat'])
 const chatRows = JSON.parse(run(['search', '数据库迁移', '--json', '--scope', 'chat']))
 assert.ok(chatRows.length >= 1, 'import into a different scope works')
 
+// 5. 宽松导入：兼容其他插件的 {text, tags, pinned} / {title, content}
+fs.writeFileSync(path.join(root, 'legacy.json'), JSON.stringify([
+  { text: '旧插件的一条记忆，只有 text 字段', tags: ['legacy'], pinned: true },
+  { title: '旧插件带标题', content: '内容正文' },
+]))
+run(['import', path.join(root, 'legacy.json'), '--scope', 'chat'])
+const legacyRows = JSON.parse(run(['search', '旧插件', '--json', '--scope', 'chat']))
+assert.ok(legacyRows.length >= 2, 'legacy text/content import works')
+
 console.log('unit ok')
 fs.rmSync(root, { recursive: true, force: true })

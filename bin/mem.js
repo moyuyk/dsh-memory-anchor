@@ -872,7 +872,8 @@ function cmdDoctor() {
     const cov = store.rawCoverage(scope);
     totalNodes += cov.total; totalRaw += cov.withRaw; totalChars += cov.chars;
 
-    const missing = store.listNodesMissingRaw(scope, { limit: 2000 });
+    // 导入条目本来就没有锚点，不计入「缺锚点」误报
+    const missing = store.listNodesMissingRaw(scope, { limit: 2000 }).filter((n) => n.source !== 'import');
     const withRaw = store.listNodesWithRaw(scope, { limit: 5000 });
     const suspect = [];
     const stale = [];
@@ -972,6 +973,63 @@ function cmdExport() {
 }
 
 /** 从 JSON 导入（跳过查重，信任输入；重复导入会重复） */
+/** 取一段文本的首句/前 60 字，用作导入时的标题兜底 */
+function firstLine(text, max = 60) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const m = t.match(/^.{1,60}?[。！？.!?]/);
+  return (m ? m[0] : t.slice(0, max)).trim();
+}
+
+const IMPORT_KIND_MAP = {
+  lesson: 'pitfall', mistake: 'pitfall', error: 'pitfall',
+  project: 'decision', decision: 'decision', user: 'pref', rules: 'pref', rule: 'pref',
+  knowledge: 'fact', fact: 'fact', preference: 'pref',
+};
+
+/**
+ * 宽松导入：兼容其他记忆插件的常见字段。
+ *   dsh-memory / dsh-ltm: { text, tags, pinned }
+ *   meow-memory:         { title, content, level, importance }
+ *   本包导出:            { title, summary, body, kind, tags, weight, scope }
+ */
+function normalizeImportItem(it, scopeArg) {
+  if (!it || typeof it !== 'object') return null;
+  const pick = (v) => (typeof v === 'string' ? v : '');
+  const rawText = (pick(it.text) || pick(it.content) || pick(it.body)).trim();
+  const title = String(it.title || it.name || firstLine(rawText) || '').trim().slice(0, 200);
+  if (!title) return null;
+
+  let summary = String(it.summary || rawText || title).trim();
+  let body = pick(it.body).trim() || (rawText.length > 500 ? rawText : '');
+  if (summary.length > 500) {
+    if (!body) body = summary;
+    summary = summary.slice(0, 499) + '…';
+  }
+
+  const kindRaw = String(it.kind || it.level || it.type || '').toLowerCase();
+  const valid = ['fact', 'decision', 'pitfall', 'pref', 'state', 'todo', 'note', 'session'];
+  const kind = valid.includes(kindRaw)
+    ? kindRaw
+    : (IMPORT_KIND_MAP[kindRaw] || (it.pinned ? 'fact' : 'note'));
+
+  const tags = Array.isArray(it.tags)
+    ? it.tags.map(String)
+    : String(it.tags || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  return {
+    scope: scopeArg || it.scope || (it.project ? 'proj:' + it.project : 'global'),
+    kind,
+    title,
+    summary,
+    body,
+    tags,
+    weight: Math.min(5, Math.max(1, Math.round(Number(it.weight || it.importance || (it.pinned ? 5 : 3)) || 3))),
+    sessionId: it.session_id || it.sessionId || '',
+    rawRef: it.raw_ref || it.rawRef || '',
+  };
+}
+
 function cmdImport() {
   const { flags, rest } = parseFlags(argv.slice(1));
   const file = flags.file || rest[0];
@@ -980,23 +1038,24 @@ function cmdImport() {
   const items = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (!Array.isArray(items)) die('JSON 应为数组');
   const scopeArg = flags.scope || null;
-  let ok = 0;
+  let ok = 0, skipped = 0;
   for (const it of items) {
-    if (!it.title) continue;
-    store.addNode(scopeArg || it.scope || 'global', {
-      kind: it.kind || 'note',
-      title: it.title,
-      summary: it.summary || '',
-      body: it.body || '',
-      tags: Array.isArray(it.tags) ? it.tags : String(it.tags || '').split(',').filter(Boolean),
-      weight: Number(it.weight) || 3,
-      sessionId: it.session_id || '',
-      rawRef: it.raw_ref || '',
+    const n = normalizeImportItem(it, scopeArg);
+    if (!n) { skipped++; continue; }
+    store.addNode(n.scope, {
+      kind: n.kind,
+      title: n.title,
+      summary: n.summary,
+      body: n.body,
+      tags: n.tags,
+      weight: n.weight,
+      sessionId: n.sessionId,
+      rawRef: n.rawRef,
       source: 'import',
     });
     ok++;
   }
-  console.log(`[已导入] ${ok} 条 -> ${scopeArg || '原 scope'}`);
+  console.log(`[已导入] ${ok} 条${skipped ? `，跳过 ${skipped} 条（无标题/空内容）` : ''} -> ${scopeArg || '原 scope'}`);
 }
 
 // ---------------------------------------------------------------- scopes / stats

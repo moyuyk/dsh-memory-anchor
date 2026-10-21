@@ -22,7 +22,8 @@
     "LICENSE",
     "icon.svg",
     "CHANGELOG.md",
-    "SECURITY.md"
+    "SECURITY.md",
+    "PROMPTS.md"
   ],
   "engines": {
     "node": ">=22.5.0"

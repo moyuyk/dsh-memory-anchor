@@ -71,6 +71,29 @@ P1 中能在本地完成的已全部补齐；剩下两项必须在发布机/真�
 - [ ] 切换 profile 并重启，验证侧栏面板/设置卡片/导出
 - [ ] 切换后删除旧插件代码，确认无双份注入
 
+## 市场痛点对照（2026-10-21 抓取）
+
+同类插件周下载量：`meow-memory` 1985、`@fooxe/dsh-memory` 1871、`dsh-memory` 312、
+`dsh-memory-eternal` 251、`@tr1v3r/dsh-ltm` 188、`@jipika/dsh-memory` 135。
+
+从各仓库 issue 归纳出的真实痛点：
+
+| 痛点 | 来源 | 本包 |
+|---|---|---|
+| 版本兼容脆弱（0.2.x 注入/折叠失效） | meow、eternal issues | **同类风险**，依赖 systemPrompt / pre-step / 会话日志 |
+| 自动整理不可靠（dream 重复、delegate 劫持、工具集被锁） | meow issues | 无后台整理，不碰模型 |
+| 注入数低于上限（先截断后过滤） | meow issue | 固定预算 + 画像优先，不走 hitTopK |
+| 配置持久化 bug（homeDir 只写不读） | meow issue | 只有一个 `memRoot`，无运行期改写 |
+| 更新静默改错条目（8 位 id 前缀） | meow issue | 整 id + `revision` CAS |
+| 多项目/多工作区隔离不足 | meow、eternal issues | `proj:` 物理分库 |
+| Windows 路径错位（HOME 为空） | jipika issue | `DSH_HOME` + `path.join`，但仍需 Windows 实测 |
+| 后台进程堆积 | eternal issue | 无常驻后台进程 |
+| 用户要「对话原文检索（L0）」 | meow issue | `grep` + `raw` 锚点回源 |
+| 用户要「关闭记忆」开关 | meow issue | 暂无 GUI 开关（P2） |
+
+结论：痛点集中在「自动整理不可靠、版本兼容、项目隔离、原文检索」。
+本包天然覆盖后两项，主动避开前两项的复杂度；版本兼容是最大共同风险。
+
 ## 审计员备注
 
 差异点是「摘要 + 锚点回源」，不是功能数量。市场同类里 `dsh-ltm` 功能更全、

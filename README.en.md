@@ -84,6 +84,31 @@ node bin/mem.js import memory.json --scope global
 Export is lossless for summaries and metadata; raw text stays in the session log.
 Import skips dedupe and trusts the input, so do not import the same file twice.
 
+## Migrating from another memory plugin
+
+Disable the old plugin first — two memory plugins mean duplicate injection and
+conflicting tool names.
+
+| Old plugin | Export | Mapping |
+|---|---|---|
+| `dsh-memory` / `dsh-ltm` | `SELECT text, tags, pinned FROM memories` → JSON array | `text` → summary, `pinned` → weight 5 |
+| `meow-memory` | export `title/content/level/importance` from the seven tables | `lesson`→pitfall, `project`→decision, `user`→preference, `rules`→preference |
+| Markdown-based | one `{title, content}` per entry | `content` → summary |
+
+```powershell
+node bin/mem.js import legacy.json --scope global
+```
+
+Imported entries carry no session anchor, so `raw` cannot resolve them; the full
+text goes into `body` and remains searchable and visible via `show`. Import does
+not dedupe — do not import the same file twice.
+
+## Let the model tidy up once (optional)
+
+This package never runs a background model to summarize memory. If you have a
+backlog to clean up, copy one of the prompts in [PROMPTS.md](./PROMPTS.md) into
+DeepSeek Harness and run it once; no recurring job is created.
+
 ## Data layout
 
 ```
