@@ -174,7 +174,8 @@ No raw conversation text is stored in these files.
 ## Compatibility
 
 - Node.js >= 22.5 (`node:sqlite`).
-- DSH 0.2.x; session log format `session.v4.jsonl.zstd`.
+- DSH 0.2.1-rc.2 (current npm latest); earlier 0.1.x / 0.2.x not individually verified.
+- Session log format `session.v4.jsonl.zstd`.
 - If DSH changes its session log format, `raw` degrades gracefully (summaries
   and search keep working); the anchor layer is the only part that depends on it.
 

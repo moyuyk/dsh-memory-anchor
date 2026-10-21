@@ -160,7 +160,8 @@ node bin/mem.js import legacy.json --scope global
 ## 兼容性
 
 - Node.js >= 22.5（`node:sqlite`）。
-- DSH 0.2.x；会话日志格式 `session.v4.jsonl.zstd`。
+- DSH 0.2.1-rc.2（当前 npm latest）实测；更早的 0.1.x / 0.2.x 未逐一验证。
+- 会话日志格式 `session.v4.jsonl.zstd`。
 - 如果 DSH 改了日志格式，`raw` 会降级（摘要和检索仍可用）；只有锚点层依赖它。
 
 ## 开发
