@@ -1001,9 +1001,13 @@ function jaccard(aTokens, bTokens) {
   return inter / (A.size + B.size - inter);
 }
 
-function findSimilar(scope, text, { threshold = 0.5, limit = 5 } = {}) {
+function findSimilar(scope, input, { threshold = 0.5, limit = 5 } = {}) {
   const file = scopeFile(scope);
   if (!fs.existsSync(file)) return [];
+  const isObj = input && typeof input === 'object';
+  const text = isObj ? `${input.title || ''} ${input.summary || ''} ${input.tags || ''}` : String(input || '');
+  const titleText = isObj ? String(input.title || '') : '';
+  const wantKind = isObj ? String(input.kind || '') : '';
   const db = new DatabaseSync(file, { readOnly: true });
   try {
     const rows = db.prepare(`
@@ -1011,10 +1015,17 @@ function findSimilar(scope, text, { threshold = 0.5, limit = 5 } = {}) {
       WHERE (status IS NULL OR status <> 'deleted')
         AND COALESCE(valid_until, '') = ''
     `).all();
-    const target = cjkTokens(String(text || ''));
+    const target = cjkTokens(text);
+    const titleTokens = titleText ? cjkTokens(titleText) : null;
     const out = [];
     for (const r of rows) {
-      const score = jaccard(target, cjkTokens(`${r.title} ${r.summary || ''} ${r.tags || ''}`));
+      let score = jaccard(target, cjkTokens(`${r.title} ${r.summary || ''} ${r.tags || ''}`));
+      // 同标题 + 同 kind 视为重复：整体 Jaccard 对「标题一模一样、摘要换个说法」不敏感
+      // （实测两条同标题条目只有 58%，会被当成新条目写进去）。
+      if (titleTokens) {
+        const titleScore = jaccard(titleTokens, cjkTokens(String(r.title || '')));
+        if (titleScore >= 0.85 && (!wantKind || r.kind === wantKind)) score = Math.max(score, 0.85);
+      }
       if (score >= threshold) out.push({ id: r.id, title: r.title, kind: r.kind, score });
     }
     out.sort((a, b) => b.score - a.score);

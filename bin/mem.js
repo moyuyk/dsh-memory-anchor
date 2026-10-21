@@ -200,7 +200,7 @@ function cmdAdd() {
   const force = Boolean(flags.force || payload?.force);
   let similar = [];
   try {
-    similar = store.findSimilar(scope, `${title} ${fullSummary} ${tagArr.join(' ')}`, { threshold: 0.5, limit: 5 });
+    similar = store.findSimilar(scope, { title, summary: fullSummary, tags: tagArr.join(' '), kind }, { threshold: 0.5, limit: 5 });
   } catch { /* 查重失败不阻断写入 */ }
   const dup = similar.filter((s) => s.score >= 0.8);
   if (dup.length && !force) {
