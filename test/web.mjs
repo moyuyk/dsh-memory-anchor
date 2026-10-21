@@ -8,7 +8,7 @@ import os from 'node:os'
 import path from 'node:path'
 import assert from 'node:assert'
 import { fileURLToPath } from 'node:url'
-import { collectStats, searchNodes, exportAll, setNode } from '../lib/web.js'
+import { collectStats, searchNodes, exportAll, setNode, archiveToFile } from '../lib/web.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-mem-web-'))
@@ -40,6 +40,13 @@ assert.ok(setNode(root, 'global', 1, { deleted: true }).ok, 'soft delete works')
 assert.equal(collectStats(root).total, 1, 'deleted node excluded')
 
 assert.ok(setNode(root, 'global', 2, { corrected: true }).ok, 'corrected works')
+
+// 归档导出（tar.gz）
+const gz = path.join(root, 'backup.tar.gz')
+await archiveToFile(root, false, gz)
+assert.ok(fs.existsSync(gz) && fs.statSync(gz).size > 0, 'archive written')
+const list = execFileSync('tar', ['-tzf', gz], { encoding: 'utf8' })
+assert.ok(list.includes('memory/db/global.db'), 'archive contains db')
 
 console.log('web ok')
 fs.rmSync(root, { recursive: true, force: true })

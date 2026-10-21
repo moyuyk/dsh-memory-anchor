@@ -84,6 +84,21 @@ node bin/mem.js import memory.json --scope global
 Export is lossless for summaries and metadata; raw text stays in the session log.
 Import skips dedupe and trusts the input, so do not import the same file twice.
 
+## Before upgrading DeepSeek Harness
+
+Upgrading the install directory does not touch `~/.dsh/sessions` or
+`~/.dsh/memory`, but a backup is still recommended.
+
+The sidebar 「记忆库」 → 「导出 ▾」 menu offers three options:
+
+| Option | Contents | Use |
+|---|---|---|
+| Summary JSON | entries + metadata | smallest backup, summary migration |
+| Memory backup | `db/` + `config.json` | routine backup |
+| Full backup | adds `sessions/` | machine move, reinstall, keep raw text |
+
+You can also copy `~/.dsh/memory` and `~/.dsh/sessions` manually.
+
 ## Migrating from another memory plugin
 
 Disable the old plugin first — two memory plugins mean duplicate injection and

@@ -70,6 +70,20 @@ node bin/mem.js import memory.json --scope global
 
 导出包含摘要和元数据；原文仍在会话日志里。导入不查重，同一个文件不要导两次。
 
+## 升级 DeepSeek Harness 前
+
+升级安装目录不会动 `~/.dsh/sessions` 和 `~/.dsh/memory`，但仍建议先备份。
+
+GUI 侧栏「记忆库」→「导出 ▾」有三种：
+
+| 选项 | 内容 | 用途 |
+|---|---|---|
+| 摘要 JSON | 结论和元数据 | 最小备份、迁移摘要 |
+| 备份包（记忆库） | `db/` + `config.json` | 日常备份 |
+| 完整包（含会话日志） | 再加 `sessions/` | 换机、重装、保原文 |
+
+也可以手动复制 `~/.dsh/memory` 和 `~/.dsh/sessions`。
+
 ## 从其他记忆插件迁移
 
 先禁用旧插件再导入——两套注入会重复、工具会重名。
