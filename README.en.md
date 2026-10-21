@@ -47,6 +47,12 @@ one does not, so there are no two datasets that can drift apart.
 
 ## Install
 
+The npm package is not published yet (npm signup is blocked on some networks).
+Two options:
+
+- **tgz or unpacked directory**: follow [INSTALL.md](./INSTALL.md);
+- **source checkout**:
+
 ```powershell
 dsh plugin --profile desktop add link:D:/path/to/dsh-memory-anchor
 ```

@@ -39,6 +39,11 @@
 
 ## 安装
 
+npm 包还没发布（npm 注册页在部分网络下被拦截），现在用两种方式之一：
+
+- **拿到 tgz 或解压目录**：按 [INSTALL.md](./INSTALL.md) 解压、改 profile、重启；
+- **拿到源码目录**：
+
 ```powershell
 dsh plugin --profile desktop add link:D:/path/to/dsh-memory-anchor
 ```
