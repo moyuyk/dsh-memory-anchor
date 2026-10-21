@@ -20,7 +20,9 @@
     "README.md",
     "README.en.md",
     "LICENSE",
-    "icon.svg"
+    "icon.svg",
+    "CHANGELOG.md",
+    "SECURITY.md"
   ],
   "engines": {
     "node": ">=22.5.0"
