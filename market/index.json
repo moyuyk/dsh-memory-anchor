@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "title": {
+    "en": "dsh-memory-anchor",
+    "zh": "锚忆"
+  },
+  "description": {
+    "en": "Anchored long-term memory: summaries in SQLite, original text restored from the session log on demand.",
+    "zh": "摘要进库，原文回源：跨会话长期记忆，零模型调用、零网络、零运行时依赖。"
+  },
+  "metadata": {
+    "categories": {
+      "memory": {
+        "title": {
+          "en": "Memory",
+          "zh": "记忆"
+        }
+      }
+    },
+    "labels": {},
+    "sortKeys": {}
+  },
+  "plugins": [
+    {
+      "name": "dsh-memory-anchor",
+      "title": {
+        "en": "dsh-memory-anchor (锚忆)",
+        "zh": "锚忆（dsh-memory-anchor）"
+      },
+      "description": {
+        "en": "Cross-session memory that keeps summaries plus one anchor per memory; `raw` goes back to the DSH session log. No model calls, no network, zero runtime dependencies.",
+        "zh": "跨会话记忆：只存摘要和一行锚点，需要原话时回会话日志取；不调模型、不联网、零运行时依赖。"
+      },
+      "author": "moyuyk",
+      "homepage": "https://github.com/moyuyk/dsh-memory-anchor#readme",
+      "repository": {
+        "url": "https://github.com/moyuyk/dsh-memory-anchor"
+      },
+      "metadata": {
+        "category": "memory",
+        "keywords": ["memory", "sqlite", "anchor", "local-first", "cross-session"],
+        "labels": [],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "publishTimestamp": 1792611257,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/moyuyk/dsh-memory-anchor",
+            "commit": "859317991635631c09253dee21825adcaab9e060"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.2 <0.3.0"
+          }
+        }
+      ]
+    }
+  ]
+}
