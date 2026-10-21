@@ -31,6 +31,7 @@
  *   node mem.js raw-fetch <scope>#<id>         按 raw_ref 从日志提取原文并入库
  *   node mem.js backfill [--scope x] [--apply] [--min-score 0.35]   批量回填原文
  *   node mem.js doctor [--scope x]             全库体检（缺原文/原文可疑/锚点失效）
+ *   node mem.js tidy [--scope x] [--apply]     整理同主题 state（默认 dry-run）
  *   node mem.js scopes                         列出所有记忆库
  *   node mem.js stats                          统计
  *   node mem.js update <scope>#<id> [--summary "..."] [--weight 5] [--status done]
@@ -316,7 +317,7 @@ function cmdAdd() {
       const ratio = st.meta / st.active;
       if (ratio > 0.3) {
         console.log(`[膨胀] 本库元记忆 ${st.meta}/${st.active}（${Math.round(ratio * 100)}%）> 30%，这条又属于元记忆。`);
-        console.log('       考虑：写进 HANDOFF.md / AGENTS.md，或先合并/失效旧条目，而不是继续新增。');
+        console.log('       考虑：写进 HANDOFF.md / AGENTS.md，或跑 `mem.js tidy --apply` 合并同主题 state。');
       }
     }
   } catch { /* 统计失败不影响写入 */ }
@@ -341,6 +342,88 @@ function cmdAdd() {
   } else if (!raw && !rawRef) {
     console.log(`[⚠️ 无原文] 这条只有摘要，raw 取不到原文。补法：mem.js backfill --scope ${scope} --apply`);
   }
+
+  // 自动合并：state 是快照，同主题的旧快照应该失效（只动 state，可 restore）
+  if (kind === 'state') autoTidyState(scope, res.id);
+}
+
+/**
+ * state 类自动合并（2026-10-21 加）
+ * ==================================
+ * 为什么只动 state：state 是「当前状态」的快照，同主题旧快照天然该被新的取代；
+ * decision/pitfall 是长期结论，自动合并的误伤代价太大，留给 tidy 手动确认。
+ * 只做软失效（valid_until + superseded_by），随时可以 restore。
+ */
+function autoTidyState(scope, newId) {
+  try {
+    const cur = store.getNode(scope, newId);
+    if (!cur) return;
+    const target = new Set(store.cjkTokens(`${cur.title || ''} ${cur.summary || ''}`));
+    if (target.size < 2) return;
+    const olds = store.listNodes(scope, { limit: 1000 })
+      .filter((n) => n.kind === 'state' && n.id !== newId && !String(n.valid_until || '').trim());
+    for (const n of olds) {
+      const toks = new Set(store.cjkTokens(`${n.title || ''} ${n.summary || ''}`));
+      const inter = [...target].filter((t) => toks.has(t)).length;
+      const small = Math.min(target.size, toks.size);
+      const ratio = small ? inter / small : 0;
+      // 同主题的判定：至少共享 3 个 bigram，且占较短一侧的 30% 以上。
+      // 纯 Jaccard 太严（「关闭状态无工具」vs「开启状态工具与注入」只有 0.3），会永远合不上。
+      if (inter < 3 || ratio < 0.3) continue;
+      store.updateNode(scope, n.id, {
+        valid_until: store.nowIso(),
+        superseded_by: `${scope}#${newId}`,
+        body: `${n.body || ''}\n\n[自动失效] 同主题 state 被 ${scope}#${newId} 取代（关键词重合 ${(ratio * 100).toFixed(0)}%）`,
+      });
+      console.log(`[自动合并] ${scope}#${n.id}「${String(n.title || '').slice(0, 28)}」→ #${newId}（重合 ${(ratio * 100).toFixed(0)}%）`);
+    }
+  } catch (e) { /* 自动整理失败不影响写入 */ if (process.env.DSH_DEBUG_TIDY) console.error('[自动合并] 跳过：' + (e && e.message || e)) }
+}
+
+/** tidy：规则化整理（只改 state，默认 dry-run） */
+function cmdTidy() {
+  const { flags } = parseFlags(argv.slice(1));
+  const apply = Boolean(flags.apply);
+  const scopes = flags.scope ? String(flags.scope).split(',').map((s) => s.trim()) : store.listScopes();
+  let candidates = 0;
+  let done = 0;
+  const sim = (a, b) => {
+    const A = new Set(store.cjkTokens(a));
+    const B = new Set(store.cjkTokens(b));
+    const inter = [...A].filter((t) => B.has(t)).length;
+    const small = Math.min(A.size, B.size) || 1;
+    const ratio = inter / small;
+    return inter >= 3 && ratio >= 0.3 ? ratio : 0;
+  };
+  for (const scope of scopes) {
+    const active = store.listNodes(scope, { limit: 5000 })
+      .filter((n) => !String(n.valid_until || '').trim());
+    const states = active.filter((n) => n.kind === 'state')
+      .sort((a, b) => b.id - a.id);
+    const keep = [];
+    for (const n of states) {
+      const text = `${n.title || ''} ${n.summary || ''}`;
+      const dup = keep.find((k) => sim(text, `${k.title || ''} ${k.summary || ''}`) >= 0.5);
+      if (!dup) { keep.push(n); continue; }
+      candidates += 1;
+      console.log(`  ${apply ? '合并' : '可合并'} ${scope}#${n.id}「${String(n.title || '').slice(0, 30)}」→ #${dup.id}`);
+      if (apply) {
+        store.updateNode(scope, n.id, {
+          valid_until: store.nowIso(),
+          superseded_by: `${scope}#${dup.id}`,
+          body: `${n.body || ''}\n\n[整理] 同主题 state 合并到 ${scope}#${dup.id}`,
+        });
+        done += 1;
+      }
+    }
+    if (active.length) {
+      const meta = active.filter((n) => store.isMetaNode(n)).length;
+      if (meta / active.length > 0.3) {
+        console.log(`  ${scope}: 元记忆 ${meta}/${active.length}（${Math.round(meta / active.length * 100)}% > 30%）`);
+      }
+    }
+  }
+  console.log(`[tidy] ${apply ? `已合并 ${done} 条` : `发现 ${candidates} 条可合并（加 --apply 执行）`}`);
 }
 
 // ---------------------------------------------------------------- search
@@ -1454,6 +1537,7 @@ const CMDS = {
   restore: cmdRestore, supersede: cmdSupersede,
   newproject: cmdNewProject, dropproject: cmdDropProject,
   wrapup: cmdWrapup, handoff: cmdHandoff, config: cmdConfig,
+  tidy: cmdTidy,
   init: cmdInit,
 };
 

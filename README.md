@@ -94,6 +94,7 @@ node bin/mem.js search "关键词"
 node bin/mem.js list --scope global
 node bin/mem.js raw global#1
 node bin/mem.js update global#1 --corrected 1
+node bin/mem.js tidy --apply          # 合并同主题 state（默认 dry-run）
 ```
 
 </details>

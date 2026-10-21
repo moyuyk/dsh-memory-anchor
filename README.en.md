@@ -102,6 +102,7 @@ node bin/mem.js search "keyword"
 node bin/mem.js list --scope global
 node bin/mem.js raw global#1
 node bin/mem.js update global#1 --corrected 1
+node bin/mem.js tidy --apply          # merge same-topic states (dry-run by default)
 ```
 
 </details>

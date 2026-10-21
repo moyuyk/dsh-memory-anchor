@@ -14,6 +14,8 @@
 - 生命周期：软删除、`restore`、`supersede`、`corrected`；`update --rev` 是原子 CAS。
 - 安全：写守卫拒绝疑似密钥/令牌。
 - 运维：`doctor`（缺原文/原文可疑/锚点失效）、`export` / `import`、`backfill`。
+- 整理：`mem.js tidy`（默认 dry-run，`--apply` 执行）合并同主题 state；
+  写入 `state` 时自动把同主题旧快照软失效（`valid_until` + `superseded_by`，可 `restore`）。
 - GUI：插件页「记忆库」面板——统计、最近条目可点开看详情、导入；
   导出四项（仅结论 JSON / Markdown 摘要 / 记忆库备份 / 完整备份）；bundle 级开关可启停。
 - 零 LLM、零网络、零第三方运行时依赖。
