@@ -1,0 +1,9 @@
+# dsh-memory-anchor bundle patch.
+#
+# `memRoot: ""` means "<DSH_HOME>/memory". A profile can override this row to
+# keep memory somewhere else; the plugin also honours $DSH_MEM_ROOT.
+- insert:
+    - id: memory-anchor
+      name: dsh-memory-anchor
+      config:
+        memRoot: ""

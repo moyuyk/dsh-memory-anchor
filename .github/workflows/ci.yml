@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Syntax check
+        run: |
+          node --check lib/index.js
+          node --check lib/recall.js
+          node --check lib/tools.js
+          node --check lib/web.js
+          node --check lib/client.js
+          node --check bin/mem.js
+      - name: Smoke test
+        run: node test/smoke.mjs
+      - name: Unit test
+        run: node test/unit.mjs
+      - name: Web API test
+        run: node test/web.mjs
+      - name: First-turn hook test
+        run: node test/hook.mjs

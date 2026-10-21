@@ -1,0 +1,62 @@
+{
+  "name": "dsh-memory-anchor",
+  "version": "0.1.0",
+  "description": "Anchored local memory for DeepSeek Harness: summaries in SQLite, raw text resolved from DSH session logs on demand. Zero LLM calls, zero network, zero third-party dependencies.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "dsh-memory-anchor": "bin/mem.js"
+  },
+  "files": [
+    "lib",
+    "bin",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "icon.svg"
+  ],
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "memory",
+    "long-term-memory",
+    "sqlite",
+    "fts5",
+    "local-first",
+    "anchored",
+    "session-log"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    },
+    "marketplace": {
+      "profiles": [
+        "desktop"
+      ],
+      "requiresRestart": true,
+      "requiresBuildApproval": false,
+      "manualSteps": false
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-system-prompt": ">=0.1.0-rc.6 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6 <0.3.0"
+  },
+  "author": "dsh-memory-anchor contributors"
+}
