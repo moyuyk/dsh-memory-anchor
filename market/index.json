@@ -55,7 +55,7 @@
           "source": {
             "type": "git",
             "url": "https://github.com/moyuyk/dsh-memory-anchor",
-            "commit": "-"
+            "commit": "66a9f7bbd8d5df929b6d0fa85b45076590c069e8"
           },
           "engines": {
             "dsh": ">=0.2.1-rc.2 <0.3.0"
